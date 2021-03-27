@@ -10,7 +10,7 @@ class Server:
     def __init__(self,hostname,port):
         #Create new server socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.bind(('', port))
+        self.sock.bind((hostname, port))
         self.sock.listen(5)
         print ("socket is listening")
 

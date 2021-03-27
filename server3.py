@@ -14,7 +14,7 @@ class Server:
     def set_up_connections(self):
         # this has no effect, why ?
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.bind(('', port))
+        self.server_socket.bind((hostname, port))
         self.server_socket.listen(10)  # max simultaneous connections.
         print('socket is listening')
         # Add server socket to the list of readable connections
