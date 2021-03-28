@@ -1,38 +1,48 @@
 import sys
 import socket
 
+BUFFER_SIZE = 1024
+
 class Server:
     def __init__(self,hostname,port):
-        
 
-    #def Run(self,port):
         while True:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)	
-            self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-            self.sock.bind((hostname,port))
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)	#Create and return a new socket object to use IP v4 and TCP.
+            self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)  #Set options on the socket.socket.SO_REUSEADDR, causes the port to be released immediately after the socket is closed
+            self.sock.bind((hostname,port))         # bind host address and port together
+            # put the socket into listening mode
             self.sock.listen()	
             print ("socket is listening")
-            
+
+             # Establish connection with client.
             request, clientAddr = self.sock.accept()
-            self.sock.close()
+            self.sock.close()               #closing the socket's inputstream and outputstream so that now it cannot be connected to any other client
             print ('Got connection from', clientAddr)
             request.send('Thank you for connecting'.encode())
             try:
                 while request:
-                    expression = request.recv(1024)
+                    # receive data stream. it won't accept data packet greater than 1024 bytes
+                    expression = request.recv(BUFFER_SIZE)
                     if not expression:
+                        # if data is not received break and close the socket
                         print('Client ',clientAddr,' has disconnected')
+                        request.close()
                         break
                     else:
                         try:
                             print("Query received = ",expression.decode(),' by ',clientAddr)
                             result = eval(expression)
-                            request.sendall(str(result).encode())      #converting int to string to byte object 
-                        except (SyntaxError, NameError):
-                            request.sendall(b'Wrong Expression!')
+                            # send data to the client
+                            request.send(str(result).encode())      #converting int to string to byte object 
+                        except (SyntaxError, NameError, ZeroDivisionError):
+                            request.send(b'Wrong Expression!')
+                            pass
+                        except :
+                            request.send(b'Wrong Expression!')
                             pass
             except socket.error:
                 print('Connection closed')
+                request.close()
                 pass
 
 if __name__ == "__main__":

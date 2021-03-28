@@ -1,14 +1,14 @@
 import socket
-import select
 import sys
 
+BUFFER_SIZE = 1024
 
 def prompt():
     sys.stdout.write("> ")
     sys.stdout.flush()
 
 
-class Client(object):
+class Client:
     def __init__(self):
         self.host = sys.argv[1]
         self.port = int(sys.argv[2])
@@ -16,17 +16,17 @@ class Client(object):
         self.connect_to_server()
 
     def connect_to_server(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.settimeout(2)
-        # connect to remote host
         try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)   #Create and return a new socket object to use IP v4 and TCP.
+            self.sock.settimeout(2)
+            # connect to the server
             self.sock.connect((self.host, self.port))
         except:
             print ('Connection Refused! Unable to connect')
             sys.exit()
 
         print('Connected to remote host. Start sending arithmetic queries.')
-        data = self.sock.recv(1024)
+        data = self.sock.recv(BUFFER_SIZE)
         sys.stdout.write(data.decode()+'\n')
         prompt()
         self.wait_for_messages()
@@ -39,7 +39,7 @@ class Client(object):
                 self.sock.send(msg.encode())
                 prompt()
                 # incoming message from remote server
-                data = self.sock.recv(1024)
+                data = self.sock.recv(BUFFER_SIZE)
                 if not data:
                     print ('\nDisconnected from server')
                     sys.exit()
@@ -56,4 +56,7 @@ class Client(object):
 
 
 if __name__ == '__main__':
+    if len(sys.argv)<3:
+        print('Enter %s [hostname] [portnumber]'%sys.argv[0])
+        sys.exit(1)
     client = Client()

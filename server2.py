@@ -5,13 +5,15 @@ import sys
 #Variables for holding information about connections
 connections = []
 total_connections = 0
+BUFFER_SIZE = 1024
 
 class Server:
     def __init__(self,hostname,port):
         #Create new server socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)  #Set options on the socket.socket.SO_REUSEADDR, causes the port to be released immediately after the socket is closed
         self.sock.bind((hostname, port))
-        self.sock.listen(5)
+        self.sock.listen()
         print ("socket is listening")
 
 #Client class, new instance created for each connected client
@@ -35,36 +37,38 @@ class Client(threading.Thread):
     #client aside from the client that has sent it
     #.decode is used to convert the byte data into a printable string
     def run(self):
-        try:
-            while self.signal:
-                try:
-                    expression = self.socket.recv(1024)
-                except:
-                    print("Client " + str(self.address) + " has disconnected")
-                    self.signal = False
-                    connections.remove(self)
-                    break
-                if expression != "":
+        global total_connections
+   
+        while self.signal:
+            try:
+                expression = self.socket.recv(BUFFER_SIZE)
+                if expression:
                     print("ID " + str(self.id) + ": " + str(expression.decode("utf-8")))
                     for client in connections:
                         if client.id == self.id:
-                            if not expression:
-                                print("Client " + str(self.address) + " has disconnected")
-                                self.signal = False
-                                connections.remove(self)
-                            #    print('Bye')
-                            else:
-                                try:
-                                    print("Query received = ",expression.decode(),' by ',self.address)
-                                    result = eval(expression)
-                                    client.socket.send(str(result).encode())      #converting int to string to byte object 
-                                except (SyntaxError, NameError):
-                                    client.socket.send(b'Wrong Expression!')
-                                    pass
-                            #client.socket.sendall(data)
-        except socket.error:
-            print('Connection closed')
-            pass
+                            try:
+                                print("Query received = ",expression.decode(),' by ',self.address)
+                                result = eval(expression)
+                                client.socket.send(str(result).encode())      #converting int to string to byte object 
+                            except (SyntaxError, NameError):
+                                client.socket.send(b'Wrong Expression!')
+                                pass
+                            except :
+                                client.socket.send(b'Wrong Expression!')
+                                pass
+                else:
+                    print("Client " + str(self.address) + " has disconnected")
+                    self.signal = False
+                    connections.remove(self)
+                    total_connections-=1
+                    break
+            except:
+                print("Client " + str(self.address) + " has disconnected")
+                self.signal = False
+                connections.remove(self)
+                total_connections-=1
+                break
+        
 
 #Wait for new connections
 def newConnections(socket):
@@ -78,6 +82,9 @@ def newConnections(socket):
         total_connections += 1
 
 if __name__ == "__main__":
+    if len(sys.argv)<3:
+        print('Enter %s [hostname] [portnumber]'%sys.argv[0])
+        sys.exit(1)
     #Get host and port
     hostname = sys.argv[1]
     port = int(sys.argv[2])
@@ -85,8 +92,8 @@ if __name__ == "__main__":
     #Create new server socket
     try:
         server = Server(hostname,port)
-    except :
-        print('Server not created')
+    except socket.error as err:
+        print('Server not created due to ',err)
         sys.exit(1)
 
     #Create new thread to wait for connections

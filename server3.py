@@ -1,8 +1,10 @@
-import socket, select, sys
+import socket
+import select
+import sys
 
 
 class Server:
-    # List to keep track of socket descriptors
+    # List to keep track of socket descriptors(basically list containing the input sources)
     CONNECTION_LIST = []
 
     def __init__(self,hostname,port):
@@ -12,10 +14,9 @@ class Server:
         self.client_connect()
 
     def set_up_connections(self):
-        # this has no effect, why ?
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind((hostname, port))
-        self.server_socket.listen(10)  # max simultaneous connections.
+        self.server_socket.listen()  
         print('socket is listening')
         # Add server socket to the list of readable connections
         self.CONNECTION_LIST.append(self.server_socket)
@@ -25,7 +26,7 @@ class Server:
         self.CONNECTION_LIST.append(sockfd)
         print ("Client (%s, %s) connected" % addr)
         self.send_data_to(sockfd, "Thank you for connecting\n Enter query: ")
-        self.user_name_dict.update({sockfd: Client(addr)})
+        self.user_name_dict.update({sockfd: Client(addr)})                      # Use of Client class
 
 
     def send_data_to(self, sock, message):
@@ -33,13 +34,13 @@ class Server:
             sock.send(message.encode())
         except:
             # broken socket connection may be, chat client pressed ctrl+c for example
-            #socket.close()
+            sock.close()
             print("msg couldnot be sent")
             self.CONNECTION_LIST.remove(sock)
 
     def client_connect(self):
         print ("Server started on port ",str(port))
-        while 1:
+        while True:
             # Get the list sockets which are ready to be read through select
             read_sockets, write_sockets, error_sockets = select.select(self.CONNECTION_LIST, [], [])
 
@@ -51,10 +52,8 @@ class Server:
 
                 # Some incoming message from a client
                 else:
-                    # Data recieved from client, process it
+                    # Data received from client, process it
                     try:
-                        # In Windows, sometimes when a TCP program closes abruptly,
-                        # a "Connection reset by peer" exception will be thrown
                         expression = sock.recv(1024)
                         if expression:
                             print('Query received =',expression.decode(),'by (%s, %s)'%self.user_name_dict[sock].address)
@@ -65,16 +64,18 @@ class Server:
                             except (SyntaxError, NameError):
                                 self.send_data_to(sock,'Wrong Expression!')
                                 pass
+                            except :
+                                self.send_data_to(sock,'Wrong Expression!')
+                                pass
                         else:
                             print("Client (%s, %s) has disconnected" %self.user_name_dict[sock].address)
+                            sock.close()
                             self.CONNECTION_LIST.remove(sock)
                     except:
                         
                         print ("Client (%s, %s) is offline" %self.user_name_dict[sock].address)
                         sock.close()
                         self.CONNECTION_LIST.remove(sock)
-                        continue
-        self.server_socket.close()
 
 class Client(object):
     def __init__(self, address):
@@ -83,6 +84,9 @@ class Client(object):
 
 
 if __name__ == "__main__":
+    if len(sys.argv)<3:
+        print('Enter %s [hostname] [portnumber]'%sys.argv[0])
+        sys.exit(1)
     #Get host and port
     hostname = sys.argv[1]
     port = int(sys.argv[2])
